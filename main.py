@@ -290,6 +290,8 @@
 # main.py
 import logging
 from Models.training import train_one_epoch, evaluate, plot_predictions, plot_loss_curve
+from Models.visualize_matrices import save_and_plot_matrices
+import seaborn as sns
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -357,6 +359,33 @@ def main():
 
     torch.save(model.state_dict(), "logs/final_model.pt")
     logging.info("Training complete. Model saved.")
+
+    # Save final model
+    torch.save(model.state_dict(), "logs/final_model.pt")
+    logging.info("Final model saved to logs/final_model.pt")
+
+    # Save A, B, C matrices and visualize them
+    save_and_plot_matrices(model, output_dir="logs/matrices")
+    logging.info("Saved A, B, C matrices and visualizations to logs/matrices")
+
+    # === Matrix Inspection: Print summaries to log ===
+    with torch.no_grad():
+        s4 = model.s4_layer
+        A_masked = (s4.A * s4.A_mask).detach().cpu()
+        B_masked = (s4.B * s4.B_mask).detach().cpu()
+        C_masked = (s4.C * s4.C_mask).detach().cpu()
+
+        def log_matrix_stats(name, mat):
+            density = (mat != 0).float().mean().item()
+            mean_val = mat.mean().item()
+            std_val = mat.std().item()
+            logging.info(f"{name} stats — shape: {mat.shape}, density: {density:.4f}, mean: {mean_val:.6f}, std: {std_val:.6f}")
+
+        log_matrix_stats("A_masked", A_masked)
+        log_matrix_stats("B_masked", B_masked)
+        log_matrix_stats("C_masked", C_masked)
+
+    logging.info("Training complete.")
 
 if __name__ == "__main__":
     main()
