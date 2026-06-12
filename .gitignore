@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+venv/
+preprocessed_data/
+training_data/
+*.pt
+*.out
+*.gz
+logs/
