@@ -120,6 +120,7 @@ def _save_chunk(input_buf, target_buf, ymodule_buf, idx):
     log(f"[INFO] Saved chunk {idx} ({len(input_buf)} samples) -> {path}")
 
 def normalize_and_save_chunks(results, input_mean, input_std, target_mean, target_std):
+    dead_pixel_mask = (input_std <= 1e-8)  # [273] boolean mask
     input_buf, target_buf, ymodule_buf = [], [], []
     chunk_idx = 0
 
@@ -127,7 +128,11 @@ def normalize_and_save_chunks(results, input_mean, input_std, target_mean, targe
         if error_count == -1:
             continue
         for x, y in zip(file_inputs, file_targets):
-            x_norm = (x.reshape(80, 273) - input_mean) / input_std
+            x_flat = x.reshape(80, 273)
+            raw_zero_mask = (x_flat == 0.0)          
+            x_norm = (x_flat - input_mean) / input_std
+            x_norm[:, dead_pixel_mask] = 0.0        
+            x_norm[raw_zero_mask] = 0.0              
             x_norm = x_norm.reshape(80, 13, 21)
 
             y_norm = (y[:6].astype(np.float32) - target_mean) / target_std
