@@ -69,8 +69,8 @@ def parse_file(file_path):
 def compute_stats(results):
     input_sum    = np.zeros(273, dtype=np.float64)
     input_sum_sq = np.zeros(273, dtype=np.float64)
-    target_sum    = np.zeros(6, dtype=np.float64)
-    target_sum_sq = np.zeros(6, dtype=np.float64)
+    target_sum    = np.zeros(3, dtype=np.float64)
+    target_sum_sq = np.zeros(3, dtype=np.float64)
     n_inputs  = 0
     n_targets = 0
 
@@ -83,7 +83,7 @@ def compute_stats(results):
             input_sum_sq += (flat ** 2).sum(axis=0)
             n_inputs += 80
         for target in file_targets:
-            t = target[:6].astype(np.float64)
+            t = target[:3].astype(np.float64)
             target_sum    += t
             target_sum_sq += t ** 2
             n_targets += 1
@@ -99,8 +99,8 @@ def compute_stats(results):
     stats = {
         "input_mean":   input_mean.tolist(),
         "input_std":    input_std.tolist(),
-        "target_mean":  target_mean.tolist(),
-        "target_std":   target_std.tolist(),
+        "pos_mean":  target_mean.tolist(),
+        "pos_std":   target_std.tolist(),
     }
     with open(os.path.join(SAVE_DIR, "norm_stats.json"), "w") as f:
         json.dump(stats, f)
@@ -115,8 +115,9 @@ def compute_stats(results):
 def _save_chunk(input_buf, target_buf, ymodule_buf, idx):
     X = torch.tensor(np.array(input_buf), dtype=torch.float32)
     Y = torch.tensor(np.array(target_buf), dtype=torch.float32)
+    y_module = torch.tensor(np.array(ymodule_buf), dtype=torch.float32)
     path = os.path.join(SAVE_DIR, f"chunk_{idx:04d}.pt")
-    torch.save({"X": X, "Y": Y,  "y_module": torch.tensor(np.array(ymodule_buf), dtype=torch.float32)}, path)
+    torch.save({    "X": X, "y_module": y_module, "Y": Y}, path)
     log(f"[INFO] Saved chunk {idx} ({len(input_buf)} samples) -> {path}")
 
 def normalize_and_save_chunks(results, input_mean, input_std, target_mean, target_std):
@@ -135,8 +136,14 @@ def normalize_and_save_chunks(results, input_mean, input_std, target_mean, targe
             x_norm[raw_zero_mask] = 0.0              
             x_norm = x_norm.reshape(80, 13, 21)
 
-            y_norm = (y[:6].astype(np.float32) - target_mean) / target_std
+            y_pos = y[:3].astype(np.float32)
+            y_pos_norm = (y_pos - target_mean) / target_std
 
+            y_dir = y[3:6].astype(np.float32)
+            norm = np.linalg.norm(y_dir)
+            y_dir_unit = y_dir / (norm + 1e-8)
+            y_norm = np.concatenate([y_pos_norm, y_dir_unit])
+            
             y_module = np.float32(y[7])
 
             input_buf.append(x_norm)
