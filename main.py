@@ -289,8 +289,8 @@
 
 # main.py
 import logging
-from Models.training import train_one_epoch, evaluate, plot_predictions, plot_loss_curve
-from Models.visualize_matrices import save_and_plot_matrices
+from Models.s4.train_s4 import train_one_epoch, evaluate, plot_predictions, plot_loss_curve
+from Models.s4.visualize_matrices import save_and_plot_matrices
 import seaborn as sns
 import torch
 import torch.nn as nn
@@ -303,7 +303,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from torch.utils.data import DataLoader, random_split
 from Data.dataset import PixelClusterDataset
-from Models.s4network import S4PredictionNetwork
+from Models.s4.s4network import S4PredictionNetwork
 
 logging.basicConfig(
     level=logging.DEBUG,
