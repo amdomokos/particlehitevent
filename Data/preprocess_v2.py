@@ -1,7 +1,12 @@
-import os, json, torch
+import os, sys, math, json, torch
 import numpy as np
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
+
+# Run as a script (python Data/preprocess_v2.py) puts Data/ on sys.path[0], so
+# add the project root to import the shared split config.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Data.config import SEED, CHUNK_SIZE, split_chunk_indices
 
 DATA_DIR = "training_data"
 SAVE_DIR = "preprocessed_data"
@@ -9,7 +14,6 @@ SEQUENCE_LENGTH = 80
 INPUT_SHAPE = (13, 21)
 RAW_TARGET_DIM = 9
 TARGET_DIM = 6
-CHUNK_SIZE = 20000
 LOG_FILE = os.path.join(SAVE_DIR, "preprocess_debug.log")
 
 os.makedirs(SAVE_DIR, exist_ok=True)
@@ -66,7 +70,15 @@ def parse_file(file_path):
         log(f"[ERROR] Failed to parse file {file_path}: {e}")
         return [], [], os.path.basename(file_path), -1
     
-def compute_stats(results):
+def compute_stats(results, train_chunk_ids, chunk_size):
+    """Normalization stats from the TRAINING split only (no val/test leakage).
+
+    A sample's chunk id is ``global_index // chunk_size`` — identical to how
+    ``normalize_and_save_chunks`` buckets samples — so only samples destined for
+    a training chunk contribute. Iteration order here must match that function
+    exactly (same ``results`` order, same skip of corrupted files).
+    """
+    train_chunk_ids = set(train_chunk_ids)
     input_sum    = np.zeros(273, dtype=np.float64)
     input_sum_sq = np.zeros(273, dtype=np.float64)
     target_sum    = np.zeros(3, dtype=np.float64)
@@ -74,19 +86,25 @@ def compute_stats(results):
     n_inputs  = 0
     n_targets = 0
 
+    g = 0  # global sample index across all valid samples, in save order
     for file_inputs, file_targets, _, error_count in results:
         if error_count == -1:
             continue
-        for arr in file_inputs:
-            flat = arr.reshape(80, 273).astype(np.float64)
-            input_sum    += flat.sum(axis=0)
-            input_sum_sq += (flat ** 2).sum(axis=0)
-            n_inputs += 80
-        for target in file_targets:
-            t = target[:3].astype(np.float64)
-            target_sum    += t
-            target_sum_sq += t ** 2
-            n_targets += 1
+        for arr, target in zip(file_inputs, file_targets):
+            if (g // chunk_size) in train_chunk_ids:
+                flat = arr.reshape(80, 273).astype(np.float64)
+                input_sum    += flat.sum(axis=0)
+                input_sum_sq += (flat ** 2).sum(axis=0)
+                n_inputs += 80
+
+                t = target[:3].astype(np.float64)
+                target_sum    += t
+                target_sum_sq += t ** 2
+                n_targets += 1
+            g += 1
+
+    log(f"[INFO] Stats computed from {n_targets} training samples "
+        f"({len(train_chunk_ids)} train chunks, seed={SEED})")
 
     input_mean = input_sum / n_inputs
     input_std  = np.sqrt(np.maximum(input_sum_sq / n_inputs - input_mean ** 2, 0.0))
@@ -188,7 +206,16 @@ def main():
         log("[FATAL] No valid data. Aborting.")
         return
 
-    input_mean, input_std, target_mean, target_std = compute_stats(results)
+    # Reconstruct the chunk-level split BEFORE computing stats so that stats come
+    # from training chunks only. n_chunks matches the number of chunk_*.pt files
+    # normalize_and_save_chunks will emit, which is what dataset_v2 splits over.
+    n_chunks = math.ceil(total_clusters / CHUNK_SIZE)
+    train_chunk_ids = split_chunk_indices(n_chunks, 'train', seed=SEED)
+    log(f"[INFO] {total_clusters} samples -> {n_chunks} chunks; "
+        f"{len(train_chunk_ids)} assigned to train (seed={SEED})")
+
+    input_mean, input_std, target_mean, target_std = compute_stats(
+        results, train_chunk_ids, CHUNK_SIZE)
     normalize_and_save_chunks(results, input_mean, input_std, target_mean, target_std)
     log(f"[SUCCESS] Preprocessing complete. Chunks saved in {SAVE_DIR}")
 

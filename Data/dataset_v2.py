@@ -3,6 +3,8 @@ import glob
 import torch
 from torch.utils.data import Dataset
 
+from Data.config import SEED, TRAIN_RATIO, VAL_RATIO, split_chunk_indices
+
 
 class PixelClusterDataset(Dataset):
     """Pixel-cluster dataset backed by preprocessed ``chunk_*.pt`` files.
@@ -14,7 +16,8 @@ class PixelClusterDataset(Dataset):
     was held resident in memory.
     """
 
-    def __init__(self, data_dir, split='train', train_ratio=0.7, val_ratio=0.1, seed=42):
+    def __init__(self, data_dir, split='train', train_ratio=TRAIN_RATIO,
+                 val_ratio=VAL_RATIO, seed=SEED):
         assert split in ('train', 'val', 'test')
         self.data_dir = data_dir
 
@@ -22,18 +25,13 @@ class PixelClusterDataset(Dataset):
         if not chunk_paths:
             raise FileNotFoundError(f"No chunk_*.pt files found in {data_dir}")
 
-        n = len(chunk_paths)
-        indices = torch.randperm(n, generator=torch.Generator().manual_seed(seed)).tolist()
-
-        n_train = int(n * train_ratio)
-        n_val = int(n * val_ratio)
-
-        if split == 'train':
-            selected = indices[:n_train]
-        elif split == 'val':
-            selected = indices[n_train:n_train + n_val]
-        else:
-            selected = indices[n_train + n_val:]
+        # Same split logic (and seed) that preprocessing used to pick the
+        # training chunks for stat computation — kept in one place in Data.config
+        # so training stats and this split can't drift apart.
+        selected = split_chunk_indices(
+            len(chunk_paths), split, seed=seed,
+            train_ratio=train_ratio, val_ratio=val_ratio,
+        )
 
         self.chunk_paths = [chunk_paths[i] for i in selected]
 
