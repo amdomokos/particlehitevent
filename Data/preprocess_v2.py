@@ -12,8 +12,10 @@ DATA_DIR = "training_data"
 SAVE_DIR = "preprocessed_data"
 SEQUENCE_LENGTH = 80
 INPUT_SHAPE = (13, 21)
-RAW_TARGET_DIM = 9
-TARGET_DIM = 6
+# Number of whitespace-separated values on a cluster's target line in the raw
+# input .out files. Distinct from Data.config.RAW_TARGET_DIM (== 6), which
+# describes the output Y-tensor layout written to chunk_*.pt.
+RAW_INPUT_TARGET_DIM = 9
 LOG_FILE = os.path.join(SAVE_DIR, "preprocess_debug.log")
 
 os.makedirs(SAVE_DIR, exist_ok=True)
@@ -36,8 +38,8 @@ def parse_file(file_path):
             try:
                 target_line = lines[cluster_idx + 1].strip()
                 target = np.array(list(map(float, target_line.split())), dtype=np.float32)
-                if len(target) != RAW_TARGET_DIM:
-                    raise ValueError(f"Target length {len(target)} != {TARGET_DIM}")
+                if len(target) != RAW_INPUT_TARGET_DIM:
+                    raise ValueError(f"Target length {len(target)} != {RAW_INPUT_TARGET_DIM}")
 
                 end_idx = next((i for i in range(cluster_idx + 1, len(lines)) if lines[i].strip() == "<cluster>"), len(lines))
                 frames = []
