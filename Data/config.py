@@ -114,8 +114,15 @@ Y_MODULE_RANGE = (-8.1, 8.1)   # approximate; recorded for sanity-check use
 
 # Path to the frozen target statistics file. Downstream code loads weights
 # and per-target stats from here; do not recompute or hardcode.
-TARGET_STATS_PATH = 'preprocessed_data/target_stats.json'
-NORM_STATS_PATH = 'preprocessed_data/norm_stats.json'
+#
+# Anchor stats-file paths to the repo root (the parent of the Data/
+# directory containing this file), so paths resolve correctly regardless
+# of the process's current working directory — important for cloud
+# environments (RunPod), subprocess launches, and notebook kernels
+# started from arbitrary directories.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TARGET_STATS_PATH = os.path.join(_REPO_ROOT, 'preprocessed_data', 'target_stats.json')
+NORM_STATS_PATH = os.path.join(_REPO_ROOT, 'preprocessed_data', 'norm_stats.json')
 
 
 def load_target_stats(path=TARGET_STATS_PATH):
