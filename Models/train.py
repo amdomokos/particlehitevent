@@ -16,7 +16,7 @@ from Models.common.engine import RunConfig, fit, smoke_test
 from Models.common.registry import list_models
 
 # --- Phase 4: import model modules here so they self-register ------------
-# e.g.  import Models.mlp.model  # noqa: F401
+import Models.models_import_all  # noqa: F401 — populates registry
 # --------------------------------------------------------------------------
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
