@@ -12,16 +12,21 @@ Core contract of ``S4Layer`` (the previous codebase violated both):
   - B and C are both trainable and both on the compute path (the old code
     had a dead ``self.C``).
 
-Parameterization per layer (H = d_model channels, N = d_state per channel):
+Parameterization per layer (H = d_model channels; ``d_state`` is the
+EFFECTIVE REAL SSM state size per channel). Following §3.3 ("Conjugate
+Symmetry") and Listing 1 of the paper, only ``N_half = d_state // 2``
+independent complex eigenvalues are stored; their conjugates are implicit,
+so the real state capacity is ``d_state``. ``d_state`` must be even.
   - Continuous-time diagonal ``A = -exp(log_A_real) + 1j * A_imag`` so
     eigenvalues always have negative real part (stable by construction).
   - Learnable per-channel timescale ``dt = exp(log_dt)``; ZOH
     discretization ``dA = exp(dt * A)``, ``dB = (dA - 1) / A * B`` maps the
     stable continuous system to a stable discrete one (|dA| < 1).
-  - Real trainable B and C; ``y_t = Re(C · h_t)``.
+  - Real trainable B, COMPLEX trainable C (stored as ``C_real``/``C_imag``);
+    ``y_t = 2 · Re(Σ_n C_n · h_{t,n})``, the conjugate-pair sum.
 
-Init (arXiv:2206.11893 §4): Re(A) = -1/2 (constant, S4D-Lin), Im(A) = π·n.
-``dt`` log-uniform over [1e-3, 1e-1].
+Init (arXiv:2206.11893 §4): Re(A) = -1/2 constant (S4D-Lin, Eq. 9),
+Im(A) = π·n. ``dt`` log-uniform over [1e-3, 1e-1].
 
 Conditioning on y_module (continuous scalar — never embedded as an ID):
   - 'concat':   project y_module, concat to the pooled representation.
@@ -57,34 +62,52 @@ _DT_MIN, _DT_MAX = 1e-3, 1e-1
 class S4Layer(nn.Module):
     """One diagonal SSM: (B, T, H) -> (B, T, H), linear in the input.
 
+    A and B are per-channel (untied), matching Gu et al.'s main-text
+    parameterization (Table 3b) rather than the tied variant in Appendix B.
+
+    The state axis holds ``N_half = d_state // 2`` complex modes; the
+    conjugate half is implicit. The output is ``2 * Re(C * h)`` summed over
+    the state axis, which implements the conjugate-pair sum that guarantees
+    a real output.
+
     ``mod``, if given, is a 6-tuple (γ_A, β_A, γ_B, β_B, γ_C, β_C) of (B, H)
     tensors applied FiLM-style to the continuous-time A and to B, C before
-    discretization; broadcast over the state dimension N.
+    discretization; broadcast over the state dimension N_half.
     """
 
     def __init__(self, d_model, d_state):
         super().__init__()
-        H, N = d_model, d_state
+        assert d_state % 2 == 0, \
+            f"d_state must be even for conjugate-pair parameterization; got {d_state}"
+        H, N_half = d_model, d_state // 2
         self.log_dt = nn.Parameter(
             torch.empty(H).uniform_(math.log(_DT_MIN), math.log(_DT_MAX)))
+        # Re(A) = -1/2 constant (S4D-Lin, Gu et al. 2022 Eq. 9)
         self.log_A_real = nn.Parameter(
-            torch.full((H, N), math.log(0.5)))
+            torch.full((H, N_half), math.log(0.5)))
+        # Im(A) = pi * n for n = 0, ..., N_half - 1  (S4D-Lin)
         self.A_imag = nn.Parameter(
-            math.pi * torch.arange(N, dtype=torch.float32).repeat(H, 1))
-        self.B = nn.Parameter(torch.ones(H, N))
-        self.C = nn.Parameter(torch.randn(H, N) / math.sqrt(N))
+            math.pi * torch.arange(N_half, dtype=torch.float32).repeat(H, 1))
+        self.B = nn.Parameter(torch.ones(H, N_half))
+        # C is complex: two real parameters. Init scale matches the previous
+        # 1/sqrt(N) for output variance; N here means d_state, not N_half.
+        c_scale = 1.0 / math.sqrt(d_state)
+        self.C_real = nn.Parameter(torch.randn(H, N_half) * c_scale)
+        self.C_imag = nn.Parameter(torch.randn(H, N_half) * c_scale)
 
     def forward(self, u, mod=None):
         u = u.float()  # recurrence always in fp32/complex64, even under AMP
         Bsz, T, H = u.shape
-        A = torch.complex(-torch.exp(self.log_A_real), self.A_imag)  # (H, N)
-        Bp, Cp = self.B, self.C
+        A = torch.complex(-torch.exp(self.log_A_real), self.A_imag)  # (H, N_half)
+        Bp = self.B
+        C_complex = torch.complex(self.C_real, self.C_imag)          # (H, N_half)
         if mod is not None:
             gA, bA, gB, bB, gC, bC = (m.float().unsqueeze(-1) for m in mod)
+            # Im(A) only, Re(A) fixed to preserve stability
             A_im_mod = A.imag * (1.0 + gA) + bA
-            A = torch.complex(A.real, A_im_mod)  # Re(A) fixed for stability
+            A = torch.complex(A.real, A_im_mod)
             Bp = Bp * (1.0 + gB) + bB
-            Cp = Cp * (1.0 + gC) + bC
+            C_complex = C_complex * (1.0 + gC) + bC   # bC broadcasts as real shift
         dt = torch.exp(self.log_dt).unsqueeze(-1)        # (H, 1)
         z = A * dt                                       # dt * A
         dA = torch.polar(torch.exp(z.real), z.imag)      # exp(dt*A), |dA|<1
@@ -94,7 +117,7 @@ class S4Layer(nn.Module):
         ys = []
         for t in range(T):
             h = dA * h + dB * u[:, t].unsqueeze(-1)      # linear — no tanh!
-            ys.append((h.real * Cp).sum(-1))             # Re(C·h), C real
+            ys.append(2.0 * (C_complex * h).real.sum(-1))  # conjugate-pair sum
         return torch.stack(ys, dim=1)                    # (B, T, H)
 
 
