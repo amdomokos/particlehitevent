@@ -30,8 +30,13 @@ assert torch.cuda.is_available() or (hasattr(torch, "xpu") and torch.xpu.is_avai
 print("GPU OK:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "xpu")
 EOF
 
-echo "[bootstrap] 5/5 pipeline smoke test (mlp)"
-python -m Models.train --model mlp --smoke --num-workers 0 \
+# Step 4 asked torch whether a GPU exists; --require-gpu makes this smoke die
+# unless the REAL training path (get_device() inside fit()) actually resolves
+# onto one. A pod where torch sees a GPU but the trainer still lands on CPU
+# fails here, in seconds — not as "loss converges weirdly slowly" 6h in. The
+# check raises before any data loads, so enforcing it costs nothing extra.
+echo "[bootstrap] 5/5 pipeline smoke test (mlp), GPU-enforced (--require-gpu)"
+python -m Models.train --model mlp --smoke --num-workers 0 --require-gpu \
     --data-dir "$DATA_DIR" --checkpoint-dir "$SMOKE_DIR"
 
 echo "[bootstrap] pod is good — launch: python -m scripts.sweep --output-root <persistent-dir> --data-dir $DATA_DIR"

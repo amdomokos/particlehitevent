@@ -40,6 +40,10 @@ def build_parser(models):
                    default='auto')
     p.add_argument('--seed', type=int, default=SEED)
     p.add_argument('--strict-deterministic', action='store_true')
+    p.add_argument('--require-gpu', action='store_true',
+                   help='fail immediately if no CUDA/XPU device is available '
+                        'instead of silently training on CPU — use on RunPod '
+                        'so a mis-provisioned pod dies at once, not 6h in')
     p.add_argument('--num-workers', type=int, default=4)
     p.add_argument('--early-stop-patience', type=int, default=10)
     p.add_argument('--grad-clip', type=float, default=1.0)
@@ -87,6 +91,7 @@ def main(argv=None, train_dataset=None, val_dataset=None, test_dataset=None):
         precision=args.precision,
         seed=args.seed,
         strict_deterministic=args.strict_deterministic,
+        require_gpu=args.require_gpu,
         num_workers=args.num_workers,
         early_stop_patience=args.early_stop_patience,
         grad_clip=args.grad_clip,

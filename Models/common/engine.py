@@ -80,6 +80,7 @@ class RunConfig:
     precision: str = 'auto'        # 'auto' | 'bf16' | 'fp16' | 'fp32'
     seed: int = SEED
     strict_deterministic: bool = False
+    require_gpu: bool = False       # fail fast if get_device() resolves to CPU
     num_workers: int = 4
     early_stop_patience: int = 10  # <= 0 disables early stopping
     grad_clip: float = 1.0         # 0 disables
@@ -353,6 +354,13 @@ def fit(cfg, train_dataset=None, val_dataset=None, test_dataset=None,
     """
     seed_everything(cfg.seed, strict=cfg.strict_deterministic)
     device = get_device()
+    if cfg.require_gpu and device.type == 'cpu':
+        raise RuntimeError(
+            "--require-gpu set but get_device() resolved to CPU: no CUDA or "
+            "XPU device is available. Refusing to run on CPU (a silent "
+            "fallback would make training ~orders slower). Check the pod has "
+            "a GPU and torch sees it (torch.cuda.is_available())."
+        )
     amp_dtype, precision = _resolve_precision(cfg.precision, device)
     print(f"[precision] {precision} (requested '{cfg.precision}')")
 
