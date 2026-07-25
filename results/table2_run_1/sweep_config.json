@@ -1,0 +1,37 @@
+{
+  "git_commit": "90c275e0e9a9153ccd4248c832655aa8598ca644",
+  "git_dirty": true,
+  "gpu": {
+    "name": "NVIDIA RTX A4000",
+    "total_memory_gb": 15.6,
+    "capability_major": 8,
+    "capability_minor": 6,
+    "driver_version": null,
+    "backend": "cuda"
+  },
+  "precision_resolved": "bf16",
+  "seed": 42,
+  "cli_args": {
+    "output_root": "/workspace/table2_run_1",
+    "models": [
+      "mlp",
+      "cnn",
+      "cnn_concat",
+      "gru",
+      "s4",
+      "s4_concat",
+      "s4_modulate"
+    ],
+    "batch_size": 64,
+    "max_epochs": 50,
+    "lr": 0.001,
+    "lambda_dir": 0.01,
+    "precision": "auto",
+    "num_workers": 4,
+    "resume": false,
+    "data_dir": "/workspace/repo/preprocessed_data",
+    "seed": 42,
+    "dry_run": false
+  },
+  "timestamp": "2026-07-22T15:53:35.712870+00:00"
+}
