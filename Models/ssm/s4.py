@@ -36,6 +36,19 @@ Conditioning on y_module (continuous scalar — never embedded as an ID):
     model reduces to plain S4 (the ``1 +`` centering; verified in tests).
     γ_A, β_A act on Im(A) only — Re(A) is fixed to preserve unconditional
     stability under conditioning.
+  - 'modulate' + ``film_bias=True`` (registered as ``s4_modulate_biased``):
+    identical to 'modulate' except the FiLM net's OUTPUT projection carries a
+    bias, so the γ/β it emits are no longer an odd function of y_module. The
+    bias-free 'modulate' net is provably odd — measured in production,
+    ``corr(γ_A(+8), -γ_A(-8)) = 1.0000`` — which forces the conditioning to be
+    exactly antisymmetric about the detector midplane. If the true
+    y_module-to-charge-dynamics relationship is not antisymmetric, that is a
+    hard constraint rather than an inductive bias, and s4_modulate did in fact
+    underperform s4_concat on real data (MSE 11.31 vs 10.23). The bias buys
+    that expressiveness at the cost of the exact-identity-at-zero property:
+    y_module = 0 now yields γ = β = <learned bias>, not 0, so the biased
+    variant does NOT reduce to plain S4 at the midplane. That is the intended
+    trade-off of this ablation, not a bug.
 """
 import math
 
@@ -53,6 +66,10 @@ default_config = {
     'dropout': 0.1,
     'conditioning': 'none',     # 'none' | 'concat' | 'modulate'
     'y_module_hidden': 32,
+    # Like 'conditioning', this is fixed by the registered variant and any
+    # value passed in a user config is overwritten by _build. It lives in
+    # default_config only so _merge's unknown-key rejection accepts it.
+    'film_bias': False,
 }
 
 _T, _HH, _WW = 80, 13, 21
@@ -146,15 +163,21 @@ class FiLMNet(nn.Module):
     Bias-free Linear layers with an odd activation (tanh) so that
     y_module = 0 maps to exactly zero modulation — required for the
     ``1 + γ`` centering to reduce to plain S4.
+
+    ``film_bias=True`` (default False, which reproduces the above exactly)
+    adds a bias to the OUTPUT projection only. The hidden layer stays
+    bias-free, so the hidden code is still ``tanh(W y)`` and still zero at
+    y = 0, but the output becomes ``W2 tanh(W1 y) + b`` — no longer odd, and
+    no longer zero at y = 0. See the module docstring for the motivation.
     """
 
-    def __init__(self, hidden, n_layers, d_model):
+    def __init__(self, hidden, n_layers, d_model, film_bias=False):
         super().__init__()
         self.n_layers, self.d_model = n_layers, d_model
         self.net = nn.Sequential(
             nn.Linear(1, hidden, bias=False),
             nn.Tanh(),
-            nn.Linear(hidden, n_layers * 6 * d_model, bias=False),
+            nn.Linear(hidden, n_layers * 6 * d_model, bias=film_bias),
         )
 
     def forward(self, y_module):
@@ -173,7 +196,7 @@ class S4Backbone(nn.Module):
     """
 
     def __init__(self, d_model, d_state, n_layers, dropout, conditioning,
-                 y_module_hidden):
+                 y_module_hidden, film_bias=False):
         super().__init__()
         if conditioning not in ('none', 'concat', 'modulate'):
             raise ValueError(f"conditioning must be 'none' | 'concat' | "
@@ -196,7 +219,7 @@ class S4Backbone(nn.Module):
         # conditioning modules last — see class docstring
         self.y_proj = (nn.Linear(1, y_module_hidden)
                        if conditioning == 'concat' else None)
-        self.film = (FiLMNet(y_module_hidden, n_layers, d_model)
+        self.film = (FiLMNet(y_module_hidden, n_layers, d_model, film_bias)
                      if conditioning == 'modulate' else None)
 
     def forward(self, X, y_module):
@@ -221,12 +244,13 @@ def _merge(config):
     return cfg
 
 
-def _build(config, conditioning):
+def _build(config, conditioning, film_bias=False):
     cfg = _merge(config)
     cfg['conditioning'] = conditioning
+    cfg['film_bias'] = film_bias
     return S4Backbone(cfg['d_model'], cfg['d_state'], cfg['n_layers'],
                       cfg['dropout'], cfg['conditioning'],
-                      cfg['y_module_hidden'])
+                      cfg['y_module_hidden'], cfg['film_bias'])
 
 
 @register_model('s4')
@@ -242,3 +266,16 @@ def build_s4_concat(config):
 @register_model('s4_modulate')
 def build_s4_modulate(config):
     return _build(config, conditioning='modulate')
+
+
+@register_model('s4_modulate_biased')
+def build_s4_modulate_biased(config):
+    """'modulate' with a biased FiLM output projection — relaxed oddness.
+
+    Identical to ``s4_modulate`` in every respect except that the FiLM net's
+    final Linear carries a bias, so γ/β are no longer an odd function of
+    y_module and are no longer exactly zero at y_module = 0. The biased
+    variant therefore does not reduce to plain S4 at the midplane; see the
+    module docstring for why that property is deliberately given up here.
+    """
+    return _build(config, conditioning='modulate', film_bias=True)

@@ -1,6 +1,6 @@
 """Model-contract tests (Phase 4) — every registered model, one contract.
 
-Parametrized over all seven registered names with tiny configs (legal
+Parametrized over all eight registered names with tiny configs (legal
 overrides of each model's ``default_config``) so the suite stays fast.
 S4-specific tests pin down the FiLM centering and the linearity of the
 recurrence — the two properties the legacy implementation got wrong.
@@ -20,10 +20,10 @@ from Models.common.engine import RunConfig, fit
 from Models.common.metrics import count_parameters
 from Models.common.registry import build_model, list_models
 from Models.rnn.rnn import RNNRegressor
-from Models.ssm.s4 import S4Layer
+from Models.ssm.s4 import FiLMNet, S4Layer
 
 EXPECTED_MODELS = ['cnn', 'cnn_concat', 'gru', 'mlp',
-                   's4', 's4_concat', 's4_modulate']
+                   's4', 's4_concat', 's4_modulate', 's4_modulate_biased']
 
 _TINY_S4 = {'d_model': 16, 'd_state': 8, 'n_layers': 2, 'dropout': 0.0,
             'y_module_hidden': 8}
@@ -36,6 +36,7 @@ TINY_CONFIGS = {
     's4': _TINY_S4,
     's4_concat': _TINY_S4,
     's4_modulate': _TINY_S4,
+    's4_modulate_biased': _TINY_S4,
 }
 
 
@@ -134,6 +135,85 @@ def test_s4_modulate_responds_to_y_module():
     out_a = model(X, torch.full((4,), -4.0))
     out_b = model(X, torch.full((4,), 4.0))
     assert (out_a - out_b).norm().item() > 1e-3
+
+
+def test_s4_modulate_film_output_layer_has_no_bias():
+    """Regression: the shipped 'modulate' variant stays bias-free."""
+    film = build_tiny('s4_modulate', seed=3).film
+    assert film.net[-1].bias is None
+    assert film.net[0].bias is None
+
+
+def test_s4_modulate_shared_weights_match_plain_s4():
+    """Regression: adding film_bias must not perturb construction order.
+
+    Conditioning modules are built last, so at a fixed seed every parameter
+    'modulate' shares with plain S4 must still be bit-identical.
+    """
+    plain = dict(build_tiny('s4', seed=11).named_parameters())
+    mod = dict(build_tiny('s4_modulate', seed=11).named_parameters())
+    assert set(plain) <= set(mod)
+    for name, p in plain.items():
+        assert torch.equal(p, mod[name]), f"parameter '{name}' changed"
+
+
+def test_s4_modulate_film_is_exactly_odd():
+    """Baseline for the ablation: bias-free FiLM is an odd function of y."""
+    film = build_tiny('s4_modulate', seed=5).film
+    pos = film(torch.tensor([8.0]))[0][0]
+    neg = film(torch.tensor([-8.0]))[0][0]
+    assert torch.allclose(pos, -neg, atol=1e-6), (
+        f"max abs dev from oddness {(pos + neg).abs().max().item()}"
+    )
+
+
+def test_s4_modulate_biased_film_output_layer_has_bias():
+    film = build_tiny('s4_modulate_biased', seed=3).film
+    assert film.net[-1].bias is not None
+    assert film.net[0].bias is None, "hidden layer must stay bias-free"
+
+
+def test_s4_modulate_biased_film_is_not_odd():
+    """The point of the variant: gamma_A(+8) != -gamma_A(-8)."""
+    film = build_tiny('s4_modulate_biased', seed=5).film
+    pos = film(torch.tensor([8.0]))[0][0]
+    neg = film(torch.tensor([-8.0]))[0][0]
+    assert not torch.allclose(pos, -neg, atol=1e-6)
+    assert (pos + neg).abs().max().item() > 1e-4
+
+
+def test_s4_modulate_biased_nonzero_at_y_zero():
+    """y_module = 0 now emits the learned bias, not exact zero.
+
+    The bias is initialized nonzero by nn.Linear, but pin the mechanism
+    down independently of that init by setting a known constant.
+    """
+    torch.manual_seed(0)
+    film = FiLMNet(hidden=8, n_layers=2, d_model=16, film_bias=True)
+    with torch.no_grad():
+        film.net[-1].bias.fill_(0.25)
+    gA = film(torch.zeros(3))[0][0]
+    assert torch.allclose(gA, torch.full_like(gA, 0.25))
+    # and the unbiased net is still exactly zero there
+    torch.manual_seed(0)
+    plain = FiLMNet(hidden=8, n_layers=2, d_model=16)
+    assert torch.count_nonzero(plain(torch.zeros(3))[0][0]) == 0
+
+
+def test_s4_modulate_biased_film_bias_receives_grad():
+    model = build_tiny('s4_modulate_biased', seed=3).train()
+    X, y_module = make_batch()
+    model(X, y_module).sum().backward()
+    bias = model.film.net[-1].bias
+    assert bias.grad is not None
+    assert bias.grad.abs().sum().item() > 0
+
+
+def test_s4_modulate_biased_differs_from_modulate():
+    X, y_module = make_batch(n=4)
+    out_mod = build_tiny('s4_modulate', seed=3).eval()(X, y_module)
+    out_biased = build_tiny('s4_modulate_biased', seed=3).eval()(X, y_module)
+    assert (out_mod - out_biased).abs().max().item() > 1e-5
 
 
 def test_s4_layer_is_linear():
