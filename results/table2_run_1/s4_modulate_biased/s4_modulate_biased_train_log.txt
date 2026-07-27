@@ -1,0 +1,6 @@
+[seed] seed=42 strict_deterministic=False
+[device] cuda: NVIDIA RTX A4000 mem=15.72GB capability=8.6 driver=None
+[precision] bf16 (requested 'auto')
+[preflight] OK — loss=0.3035, checkpoint dir /workspace/table2_run_1/s4_modulate_biased writable
+  [ep 01/50] batch 50/4375 loss=0.1074
+  [ep 01/50] batch 100/4375 loss=0.0741
