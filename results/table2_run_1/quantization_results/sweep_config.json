@@ -1,0 +1,53 @@
+{
+  "cli_args": {
+    "checkpoint_root": "/workspace/table2_run_1",
+    "data_dir": "/workspace/repo/preprocessed_data",
+    "output_dir": null,
+    "models": [
+      "s4_concat",
+      "s4_modulate_full"
+    ],
+    "granularities": [
+      "per_tensor",
+      "per_channel"
+    ],
+    "subsets": [
+      "A",
+      "B",
+      "C",
+      "A+B+C"
+    ],
+    "bits": [
+      8,
+      6,
+      4,
+      2
+    ],
+    "batch_size": 512,
+    "num_workers": 4,
+    "precision": "fp32",
+    "limit_samples": null,
+    "baseline_only": false,
+    "dry_run": false,
+    "force": false,
+    "no_tables": false
+  },
+  "resolved": {
+    "precision": "fp32",
+    "device": "cuda",
+    "gpu": "NVIDIA RTX A4000",
+    "batch_size": 512,
+    "n_eval_samples": 79829,
+    "n_test_samples_full": 79829,
+    "limited": false
+  },
+  "gpu": {
+    "name": "NVIDIA RTX A4000",
+    "total_memory_gb": 15.72,
+    "capability_major": 8,
+    "capability_minor": 6,
+    "driver_version": null,
+    "backend": "cuda"
+  },
+  "timestamp": "2026-07-30T03:54:22.668446+00:00"
+}

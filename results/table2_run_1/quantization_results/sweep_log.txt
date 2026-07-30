@@ -1,0 +1,85 @@
+[device] cuda: NVIDIA RTX A4000 mem=15.72GB capability=8.6 driver=None
+[quant] precision: fp32 (requested 'fp32')
+[quant] checkpoint root: /workspace/table2_run_1
+[quant] output dir:      /workspace/table2_run_1/quantization_results
+[quant] 66 configuration(s) planned, 0 already in results.jsonl, 66 to run
+[quant] test split: 79829 samples, batch_size=512, 156 batches
+[quant] loaded /workspace/table2_run_1/s4_concat/best.pt — epoch 50, best_val_mse 0.000399, 320,645 params, trained in bf16
+[quant]   Table 2 reference: mse=10.232754 (evaluated in bf16)
+[quant] [OK] s4_concat|baseline|none|fp32  (1/33) mse=10.210532 d_vs_table2=-0.022222 nz_mae=0.00786314 ny_mae=0.00301292 t=72.3s
+[quant] [OK] s4_concat|per_tensor|A|8  (2/33) mse=10.404666 d_vs_table2=+0.171912 nz_mae=0.00829143 ny_mae=0.00301371 relL2=0.003584 t=27.5s
+[quant] [OK] s4_concat|per_tensor|A|6  (3/33) mse=18.312836 d_vs_table2=+8.080081 nz_mae=0.0112737 ny_mae=0.00360663 relL2=0.01395 t=27.5s
+[quant] [OK] s4_concat|per_tensor|A|4  (4/33) mse=57.675954 d_vs_table2=+47.443199 nz_mae=0.0266264 ny_mae=0.0130214 relL2=0.05988 t=27.5s
+[quant] [OK] s4_concat|per_tensor|A|2  (5/33) mse=13114.230934 d_vs_table2=+13103.998180 nz_mae=0.19268 ny_mae=0.231973 relL2=0.3663 t=27.5s
+[quant] [OK] s4_concat|per_tensor|B|8  (6/33) mse=10.225166 d_vs_table2=-0.007589 nz_mae=0.00787165 ny_mae=0.00301298 relL2=0.003201 t=27.5s
+[quant] [OK] s4_concat|per_tensor|B|6  (7/33) mse=10.211592 d_vs_table2=-0.021163 nz_mae=0.00795877 ny_mae=0.00301031 relL2=0.01302 t=27.5s
+[quant] [OK] s4_concat|per_tensor|B|4  (8/33) mse=10.242510 d_vs_table2=+0.009756 nz_mae=0.00803409 ny_mae=0.0030056 relL2=0.05454 t=27.4s
+[quant] [OK] s4_concat|per_tensor|B|2  (9/33) mse=14.901524 d_vs_table2=+4.668770 nz_mae=0.0109566 ny_mae=0.00426874 relL2=0.2532 t=27.5s
+[quant] [OK] s4_concat|per_tensor|C|8  (10/33) mse=10.272271 d_vs_table2=+0.039516 nz_mae=0.00783573 ny_mae=0.00302891 relL2=0.009755 t=28.0s
+[quant] [OK] s4_concat|per_tensor|C|6  (11/33) mse=10.400407 d_vs_table2=+0.167653 nz_mae=0.00782963 ny_mae=0.00300427 relL2=0.03927 t=27.5s
+[quant] [OK] s4_concat|per_tensor|C|4  (12/33) mse=17.678753 d_vs_table2=+7.445999 nz_mae=0.00971315 ny_mae=0.00407044 relL2=0.1645 t=27.5s
+[quant] [OK] s4_concat|per_tensor|C|2  (13/33) mse=320.159098 d_vs_table2=+309.926344 nz_mae=0.0401061 ny_mae=0.0116318 relL2=0.7281 t=27.4s
+[quant] [OK] s4_concat|per_tensor|A+B+C|8  (14/33) mse=10.429488 d_vs_table2=+0.196733 nz_mae=0.0082392 ny_mae=0.00302272 relL2=0.005976 t=27.5s
+[quant] [OK] s4_concat|per_tensor|A+B+C|6  (15/33) mse=18.951721 d_vs_table2=+8.718967 nz_mae=0.0113617 ny_mae=0.00357603 relL2=0.02389 t=27.5s
+[quant] [OK] s4_concat|per_tensor|A+B+C|4  (16/33) mse=59.077306 d_vs_table2=+48.844551 nz_mae=0.0327213 ny_mae=0.0151927 relL2=0.1007 t=27.5s
+[quant] [OK] s4_concat|per_tensor|A+B+C|2  (17/33) mse=5351.801978 d_vs_table2=+5341.569223 nz_mae=0.156557 ny_mae=0.33407 relL2=0.4884 t=27.3s
+[quant] [OK] s4_concat|per_channel|A|8  (18/33) mse=10.168297 d_vs_table2=-0.064457 nz_mae=0.00810568 ny_mae=0.00307547 relL2=0.001723 t=27.5s
+[quant] [OK] s4_concat|per_channel|A|6  (19/33) mse=19.278101 d_vs_table2=+9.045347 nz_mae=0.0113817 ny_mae=0.00368487 relL2=0.006914 t=27.5s
+[quant] [OK] s4_concat|per_channel|A|4  (20/33) mse=44.736109 d_vs_table2=+34.503354 nz_mae=0.0225973 ny_mae=0.0117159 relL2=0.02901 t=27.5s
+[quant] [OK] s4_concat|per_channel|A|2  (21/33) mse=11801.479859 d_vs_table2=+11791.247105 nz_mae=0.192629 ny_mae=0.236612 relL2=0.1448 t=27.4s
+[quant] [OK] s4_concat|per_channel|B|8  (22/33) mse=10.213376 d_vs_table2=-0.019378 nz_mae=0.00785804 ny_mae=0.00301377 relL2=0.001348 t=27.5s
+[quant] [OK] s4_concat|per_channel|B|6  (23/33) mse=10.203237 d_vs_table2=-0.029517 nz_mae=0.00787269 ny_mae=0.00301035 relL2=0.005456 t=27.5s
+[quant] [OK] s4_concat|per_channel|B|4  (24/33) mse=10.192394 d_vs_table2=-0.040360 nz_mae=0.00808951 ny_mae=0.00302164 relL2=0.02278 t=27.5s
+[quant] [OK] s4_concat|per_channel|B|2  (25/33) mse=10.841648 d_vs_table2=+0.608894 nz_mae=0.00908062 ny_mae=0.00309241 relL2=0.1155 t=27.5s
+[quant] [OK] s4_concat|per_channel|C|8  (26/33) mse=10.219402 d_vs_table2=-0.013352 nz_mae=0.00786487 ny_mae=0.00300958 relL2=0.003551 t=27.5s
+[quant] [OK] s4_concat|per_channel|C|6  (27/33) mse=10.197292 d_vs_table2=-0.035462 nz_mae=0.00782667 ny_mae=0.00302811 relL2=0.01431 t=27.5s
+[quant] [OK] s4_concat|per_channel|C|4  (28/33) mse=10.405492 d_vs_table2=+0.172738 nz_mae=0.00785876 ny_mae=0.0030089 relL2=0.05985 t=27.5s
+[quant] [OK] s4_concat|per_channel|C|2  (29/33) mse=43.774481 d_vs_table2=+33.541726 nz_mae=0.0190484 ny_mae=0.00445571 relL2=0.2996 t=27.5s
+[quant] [OK] s4_concat|per_channel|A+B+C|8  (30/33) mse=10.158669 d_vs_table2=-0.074086 nz_mae=0.00810093 ny_mae=0.00307297 relL2=0.002379 t=27.4s
+[quant] [OK] s4_concat|per_channel|A+B+C|6  (31/33) mse=19.215273 d_vs_table2=+8.982519 nz_mae=0.0112957 ny_mae=0.00368765 relL2=0.009581 t=27.5s
+[quant] [OK] s4_concat|per_channel|A+B+C|4  (32/33) mse=46.214761 d_vs_table2=+35.982007 nz_mae=0.0226694 ny_mae=0.0109919 relL2=0.0401 t=27.4s
+[quant] [OK] s4_concat|per_channel|A+B+C|2  (33/33) mse=9737.894724 d_vs_table2=+9727.661970 nz_mae=0.261471 ny_mae=0.13048 relL2=0.2008 t=27.4s
+[quant] loaded /workspace/table2_run_1/s4_modulate_full/best.pt — epoch 47, best_val_mse 0.000467, 431,141 params, trained in bf16
+[quant]   Table 2 reference: mse=10.567923 (evaluated in bf16)
+[quant] [OK] s4_modulate_full|baseline|none|fp32  (1/33) mse=10.524977 d_vs_table2=-0.042946 nz_mae=0.0088329 ny_mae=0.00313817 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|A|8  (2/33) mse=10.718957 d_vs_table2=+0.151034 nz_mae=0.00893739 ny_mae=0.00332863 relL2=0.003502 t=34.2s
+[quant] [OK] s4_modulate_full|per_tensor|A|6  (3/33) mse=12.531917 d_vs_table2=+1.963994 nz_mae=0.00949232 ny_mae=0.00365793 relL2=0.01328 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|A|4  (4/33) mse=22.173345 d_vs_table2=+11.605421 nz_mae=0.0155952 ny_mae=0.00554545 relL2=0.05974 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|A|2  (5/33) mse=1535.360563 d_vs_table2=+1524.792640 nz_mae=0.126244 ny_mae=0.0240347 relL2=0.3419 t=34.2s
+[quant] [OK] s4_modulate_full|per_tensor|B|8  (6/33) mse=10.522024 d_vs_table2=-0.045899 nz_mae=0.00883189 ny_mae=0.00313353 relL2=0.004121 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|B|6  (7/33) mse=10.578543 d_vs_table2=+0.010620 nz_mae=0.00892833 ny_mae=0.0031363 relL2=0.01665 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|B|4  (8/33) mse=10.951690 d_vs_table2=+0.383767 nz_mae=0.00909762 ny_mae=0.00309182 relL2=0.07065 t=34.2s
+[quant] [OK] s4_modulate_full|per_tensor|B|2  (9/33) mse=13.991617 d_vs_table2=+3.423694 nz_mae=0.0126085 ny_mae=0.00337282 relL2=0.345 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|C|8  (10/33) mse=10.523329 d_vs_table2=-0.044594 nz_mae=0.00884079 ny_mae=0.00312966 relL2=0.01173 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|C|6  (11/33) mse=10.508466 d_vs_table2=-0.059457 nz_mae=0.00889165 ny_mae=0.003149 relL2=0.04745 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|C|4  (12/33) mse=12.317435 d_vs_table2=+1.749512 nz_mae=0.00999481 ny_mae=0.00347617 relL2=0.1984 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|C|2  (13/33) mse=241.634564 d_vs_table2=+231.066641 nz_mae=0.027978 ny_mae=0.0062091 relL2=0.7679 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|A+B+C|8  (14/33) mse=10.710879 d_vs_table2=+0.142956 nz_mae=0.00893456 ny_mae=0.0033169 relL2=0.006915 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|A+B+C|6  (15/33) mse=12.635919 d_vs_table2=+2.067995 nz_mae=0.00967824 ny_mae=0.00368834 relL2=0.02762 t=34.3s
+[quant] [OK] s4_modulate_full|per_tensor|A+B+C|4  (16/33) mse=40.811705 d_vs_table2=+30.243782 nz_mae=0.0176854 ny_mae=0.00586446 relL2=0.1174 t=34.2s
+[quant] [OK] s4_modulate_full|per_tensor|A+B+C|2  (17/33) mse=2868.583250 d_vs_table2=+2858.015327 nz_mae=0.133588 ny_mae=0.02823 relL2=0.513 t=34.2s
+[quant] [OK] s4_modulate_full|per_channel|A|8  (18/33) mse=10.765597 d_vs_table2=+0.197673 nz_mae=0.00897864 ny_mae=0.00333259 relL2=0.001711 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|A|6  (19/33) mse=12.370718 d_vs_table2=+1.802794 nz_mae=0.00949025 ny_mae=0.00363605 relL2=0.007072 t=34.2s
+[quant] [OK] s4_modulate_full|per_channel|A|4  (20/33) mse=22.678448 d_vs_table2=+12.110525 nz_mae=0.0153724 ny_mae=0.00552095 relL2=0.02878 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|A|2  (21/33) mse=1433.371949 d_vs_table2=+1422.804025 nz_mae=0.120358 ny_mae=0.0235766 relL2=0.1444 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|B|8  (22/33) mse=10.525921 d_vs_table2=-0.042002 nz_mae=0.00883317 ny_mae=0.00313931 relL2=0.00162 t=34.2s
+[quant] [OK] s4_modulate_full|per_channel|B|6  (23/33) mse=10.524155 d_vs_table2=-0.043768 nz_mae=0.00882722 ny_mae=0.0031387 relL2=0.006675 t=34.2s
+[quant] [OK] s4_modulate_full|per_channel|B|4  (24/33) mse=10.569567 d_vs_table2=+0.001644 nz_mae=0.00891821 ny_mae=0.00317037 relL2=0.02755 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|B|2  (25/33) mse=10.993021 d_vs_table2=+0.425098 nz_mae=0.0085352 ny_mae=0.00337669 relL2=0.1374 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|C|8  (26/33) mse=10.531852 d_vs_table2=-0.036071 nz_mae=0.00883816 ny_mae=0.00314196 relL2=0.003956 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|C|6  (27/33) mse=10.525201 d_vs_table2=-0.042723 nz_mae=0.00889189 ny_mae=0.00315924 relL2=0.01591 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|C|4  (28/33) mse=10.687191 d_vs_table2=+0.119268 nz_mae=0.00883434 ny_mae=0.003161 relL2=0.06599 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|C|2  (29/33) mse=15.789713 d_vs_table2=+5.221790 nz_mae=0.00984468 ny_mae=0.00350407 relL2=0.3324 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|A+B+C|8  (30/33) mse=10.776415 d_vs_table2=+0.208491 nz_mae=0.00897874 ny_mae=0.0033379 relL2=0.002591 t=34.2s
+[quant] [OK] s4_modulate_full|per_channel|A+B+C|6  (31/33) mse=12.465894 d_vs_table2=+1.897970 nz_mae=0.00956554 ny_mae=0.00366771 relL2=0.01053 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|A+B+C|4  (32/33) mse=24.059441 d_vs_table2=+13.491518 nz_mae=0.0157066 ny_mae=0.00584643 relL2=0.04342 t=34.3s
+[quant] [OK] s4_modulate_full|per_channel|A+B+C|2  (33/33) mse=1295.490756 d_vs_table2=+1284.922833 nz_mae=0.119107 ny_mae=0.0227949 relL2=0.2182 t=34.3s
+[quant] sweep finished: 66 succeeded, 0 failed, wall clock 0:34:47
+[tables] wrote /workspace/table2_run_1/quantization_results/Table4_s4_concat_per_tensor.csv
+[tables] wrote /workspace/table2_run_1/quantization_results/Table4_s4_concat_per_channel.csv
+[tables] wrote /workspace/table2_run_1/quantization_results/Table4_s4_modulate_full_per_tensor.csv
+[tables] wrote /workspace/table2_run_1/quantization_results/Table4_s4_modulate_full_per_channel.csv
+[tables] wrote /workspace/table2_run_1/quantization_results/Table4.md
+[tables] wrote /workspace/table2_run_1/quantization_results/Table4_all.csv
+[tables] wrote /workspace/table2_run_1/quantization_results/quantization_per_target.csv
+[tables] wrote /workspace/table2_run_1/quantization_results/SUMMARY.md
