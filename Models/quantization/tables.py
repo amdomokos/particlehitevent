@@ -408,6 +408,133 @@ def _winner(entry, field):
     return None if scored[0][0] == scored[1][0] else scored[0][1]
 
 
+def _dominant_target(baselines):
+    """-> (target name, its mean share of the unweighted aggregate MSE).
+
+    The aggregate is a plain mean over five targets whose scales differ by four
+    orders of magnitude, so one target can account for essentially all of it.
+    Whether that is the case decides how much ΔMSE alone is worth.
+    """
+    if not baselines:
+        return None, None
+    shares = []
+    for base in baselines.values():
+        total = sum(base['per_target_mse'])
+        if total > 0:
+            shares.append([v / total for v in base['per_target_mse']])
+    if not shares:
+        return None, None
+    mean = [sum(s[i] for s in shares) / len(shares)
+            for i in range(len(ACTIVE_TARGET_NAMES))]
+    i = max(range(len(mean)), key=mean.__getitem__)
+    return ACTIVE_TARGET_NAMES[i], mean[i]
+
+
+def _destroyed_lines(records, baselines, threshold=10.0):
+    """Name the bit-widths where the model is simply broken.
+
+    Past roughly an order of magnitude above baseline, configurations are not
+    'more or less degraded' — they are all unusable, and their relative
+    ordering is noise. Saying so prevents a reader from mining a ranking out of
+    the 2-bit column.
+    """
+    ruined = {}
+    for rec in records:
+        base = baselines.get(rec['model'])
+        if base is None or base['mse'] <= 0:
+            continue
+        ratio = rec['mse'] / base['mse']
+        if ratio > threshold:
+            ruined.setdefault(rec['bits'], []).append(ratio)
+    if not ruined:
+        return []
+    bits = sorted(ruined, reverse=True)
+    worst = max(max(v) for v in ruined.values())
+    lo = min(min(v) for v in ruined.values())
+    return [
+        f"> **{', '.join(f'{b}-bit' for b in bits)} destroys both models.** "
+        f"MSE lands {lo:.0f}x to {worst:.0f}x above baseline there, so those "
+        f"configurations are not usable at any quality bar and their relative "
+        f"ordering carries no signal — differences between two unusable models "
+        f"are noise, not robustness. The interpretable comparison is at the "
+        f"bit-widths above.", '']
+
+
+def _sensitivity_lines(records, baselines, delta_ref, models):
+    """Per-subset sensitivity resolved BY bit-width.
+
+    Averaging ΔMSE across bit-widths would be dominated by the lowest one,
+    where every configuration is broken by orders of magnitude — the mean would
+    describe the 2-bit column and nothing else.
+    """
+    lines = ['## Which matrix is most sensitive', '',
+             'ΔMSE per subset, averaged over the checkpoints, resolved by '
+             'bit-width. Deliberately not averaged ACROSS bit-widths: the '
+             'lowest one is orders of magnitude larger and would swamp the '
+             'rest.', '']
+    bits = _present(records, 'bits', BITS)
+    for gran in _present(records, 'granularity', GRANULARITIES):
+        header = ['Quantized matrices'] + [f'{b}-bit' for b in bits]
+        lines += [f"### {_GRAN_LABEL.get(gran, gran)} (mean of "
+                  f"{len(models)} checkpoints)", '',
+                  '| ' + ' | '.join(header) + ' |',
+                  '|---' * len(header) + '|']
+        for subset in _present(records, 'subset', SUBSETS):
+            cells = [subset]
+            for b in bits:
+                vals = [delta(r, baselines, delta_ref) for r in records
+                        if r['granularity'] == gran and r['subset'] == subset
+                        and r['bits'] == b]
+                vals = [v for v in vals if v is not None]
+                cells.append(_fmt(sum(vals) / len(vals) if vals else None))
+            lines.append('| ' + ' | '.join(cells) + ' |')
+        lines.append('')
+    return lines
+
+
+def _per_target_lines(records, baselines, models, focus_bits=(8, 6)):
+    """Relative per-target MAE degradation under joint A+B+C quantization.
+
+    §5.1's requirement, in the headline document rather than only in the
+    supplementary CSV: aggregate ΔMSE can look free while the direction
+    components measurably degrade, and that is invisible unless per-target
+    numbers are put next to it.
+    """
+    idx = _index(records)
+    lines = ['## Per-target degradation (A+B+C)', '',
+             'Percent change in per-target MAE versus each checkpoint\'s own '
+             'unquantized baseline. Positive = worse.', '']
+    for b in focus_bits:
+        rows = []
+        for model in models:
+            base = baselines.get(model)
+            if base is None:
+                continue
+            for gran in _present(records, 'granularity', GRANULARITIES):
+                rec = idx.get((model, gran, JOINT_SUBSET, b))
+                if rec is None:
+                    continue
+                rel = [100.0 * (rec['per_target_mae'][i]
+                                / base['per_target_mae'][i] - 1)
+                       if base['per_target_mae'][i] else None
+                       for i in range(len(ACTIVE_TARGET_NAMES))]
+                agg = 100.0 * (rec['mse'] / base['mse'] - 1)
+                rows.append((model, _GRAN_TAG.get(gran, gran), rel, agg))
+        if not rows:
+            continue
+        header = (['Checkpoint', 'Gran.']
+                  + [f'{t} MAE' for t in ACTIVE_TARGET_NAMES] + ['agg MSE'])
+        lines += [f"### {b}-bit", '', '| ' + ' | '.join(header) + ' |',
+                  '|---' * len(header) + '|']
+        for model, tag, rel, agg in rows:
+            lines.append(f"| {model} | {tag} | "
+                         + ' | '.join(_fmt(v, '+.2f') + '%' if v is not None
+                                     else '—' for v in rel)
+                         + f" | {agg:+.2f}% |")
+        lines.append('')
+    return lines
+
+
 def write_summary_markdown(path, records, baselines, delta_ref):
     models = sorted({r['model'] for r in records})
     _, ref_label = (reference_mse(records[0], baselines, delta_ref)
@@ -430,10 +557,27 @@ def write_summary_markdown(path, records, baselines, delta_ref):
         '',
     ]
     lines += _offset_lines(baselines)
+
+    target, share = _dominant_target(baselines)
+    if target is not None and share > 0.5:
+        lines += [
+            '', '## How to read ΔMSE', '',
+            f"The unweighted aggregate MSE is **{share:.1%} `{target}`** — the "
+            f"five active targets differ in scale by four orders of magnitude, "
+            f"and a plain mean is dominated by the largest. ΔMSE therefore "
+            f"tracks `{target}` almost exclusively and is close to blind to the "
+            f"three direction components. A configuration can post ΔMSE ≤ 0 "
+            f"while `n_y` and `n_z` measurably degrade. Read the per-target "
+            f"section below (and `quantization_per_target.csv`) before "
+            f"concluding that a bit-width is free.",
+        ]
+
     lines += [
         '',
         '## Headline — joint A+B+C quantization',
-        '',
+        '',]
+    lines += _destroyed_lines(records, baselines)
+    lines += [
         'The realistic deployment case: all three state-space matrices '
         'quantized simultaneously at the same bit-width. **ΔMSE** measures '
         'robustness (how much each checkpoint loses); **MSE** measures what '
@@ -464,28 +608,8 @@ def write_summary_markdown(path, records, baselines, delta_ref):
             lines.append('| ' + ' | '.join(cells) + ' |')
         lines.append('')
 
-    # Per-subset sensitivity ranking, averaged over bit-widths — answers
-    # "which matrix is the fragile one" without reading the whole grid.
-    lines += ['## Which matrix is most sensitive', '',
-              'Mean ΔMSE across bit-widths, per subset (higher = more '
-              'sensitive to quantization).', '']
-    header = ['Quantized matrices'] + [f'{m} ({_GRAN_TAG.get(g, g)})'
-                                       for m in models
-                                       for g in _present(records,
-                                                         'granularity',
-                                                         GRANULARITIES)]
-    lines += ['| ' + ' | '.join(header) + ' |', '|---' * len(header) + '|']
-    for subset in _present(records, 'subset', SUBSETS):
-        cells = [subset]
-        for model in models:
-            for gran in _present(records, 'granularity', GRANULARITIES):
-                vals = [delta(r, baselines, delta_ref) for r in records
-                        if r['model'] == model and r['granularity'] == gran
-                        and r['subset'] == subset]
-                vals = [v for v in vals if v is not None]
-                cells.append(_fmt(sum(vals) / len(vals) if vals else None))
-        lines += ['| ' + ' | '.join(cells) + ' |']
-    lines.append('')
+    lines += _sensitivity_lines(records, baselines, delta_ref, models)
+    lines += _per_target_lines(records, baselines, models)
 
     lines += ['## Reproduce', '',
               '```', 'python -m Models.quantization.sweep \\',
